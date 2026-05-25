@@ -105,6 +105,7 @@
       <button type="button" class="btn btn-export" id="btnExport">📤 Export</button>
       <button type="button" class="btn btn-reset" id="btnReset">↺ Reset to 36</button>
       <button type="button" class="btn btn-clear" id="btnClear">🗑 Clear All</button>
+      <button type="button" class="btn btn-export" id="btnSave">💾 Save</button>
     </div>
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div>Below target</div>
@@ -350,6 +351,10 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnClear').addEventListener('click', () => {
     showConfirm('Clear ALL data?', 'This deletes every reel including the 36 pre-logged ones.', doClearAll);
   });
+  document.getElementById('btnSave').addEventListener('click', () => {
+  saveData();
+  showToast('✓ Changes saved');
+});
   document.getElementById('modalCancel').addEventListener('click', hideModal);
   document.getElementById('modalConfirm').addEventListener('click', () => {
     if (pendingAction) pendingAction();
