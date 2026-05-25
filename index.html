@@ -1,1 +1,368 @@
-index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Reel Schedule</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 16px;
+    color: #2d2d3a;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  header { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+  h1 { font-size: 22px; margin-bottom: 6px; color: #4a3a8a; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 14px; }
+  .save-status { background: #d1fae5; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 8px; font-size: 12px; color: #065f46; margin-bottom: 14px; }
+  .save-status.error { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .stat { background: #f5f3ff; padding: 10px; border-radius: 10px; text-align: center; }
+  .stat-num { font-size: 20px; font-weight: 700; color: #667eea; }
+  .stat-label { font-size: 10px; color: #666; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .target-select { padding: 10px 12px; border-radius: 8px; border: 2px solid #e0d8f5; background: white; font-size: 14px; flex: 1; min-width: 140px; }
+  .btn {
+    padding: 12px 18px; color: white; border: none; border-radius: 8px;
+    font-size: 14px; cursor: pointer; font-weight: 600;
+    touch-action: manipulation; -webkit-appearance: none; appearance: none;
+    min-height: 44px;
+  }
+  .btn:active { opacity: 0.85; transform: scale(0.97); }
+  .btn-export { background: #667eea; }
+  .btn-reset { background: #ef4444; }
+  .btn-clear { background: #dc2626; }
+  .progress-bar { width: 100%; height: 8px; background: #e0d8f5; border-radius: 4px; overflow: hidden; margin-top: 12px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.3s ease; }
+  .progress-label { font-size: 11px; color: #666; margin-top: 4px; text-align: right; }
+  .help { background: #eff6ff; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #1e40af; margin-bottom: 10px; line-height: 1.5; }
+  .month { background: white; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+  .month.past-period { border-left: 4px solid #10b981; }
+  .month-title { font-size: 17px; font-weight: 700; margin-bottom: 10px; color: #4a3a8a; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .month-count { font-size: 13px; color: #667eea; background: #f5f3ff; padding: 3px 10px; border-radius: 12px; }
+  .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+  .weekday { text-align: center; font-size: 10px; color: #999; font-weight: 600; padding: 4px 0; }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .day {
+    aspect-ratio: 1; border: 2px solid #f0ecfa; border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 13px; font-weight: 600;
+    transition: all 0.15s ease; user-select: none; background: white;
+    touch-action: manipulation;
+  }
+  .day:active { transform: scale(0.93); }
+  .day.empty { visibility: hidden; pointer-events: none; }
+  .day.has-reels { background: linear-gradient(135deg, #a78bfa, #8b5cf6); color: white; border-color: #7c3aed; }
+  .day.target-met { background: linear-gradient(135deg, #34d399, #10b981); color: white; border-color: #059669; }
+  .day.over-target { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white; border-color: #d97706; }
+  .day.today { box-shadow: 0 0 0 3px #667eea; }
+  .reel-count { font-size: 9px; margin-top: 2px; opacity: 0.95; }
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; margin-top: 8px; color: #666; }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  .period-banner { color: white; padding: 8px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 12px; font-weight: 600; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #10b981; color: white; padding: 14px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; opacity: 0; transition: opacity 0.3s; z-index: 1000; box-shadow: 0 4px 20px rgba(0,0,0,0.2); pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 24px; max-width: 380px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+  .modal h3 { color: #4a3a8a; margin-bottom: 10px; font-size: 18px; }
+  .modal p { color: #555; font-size: 14px; line-height: 1.5; margin-bottom: 18px; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions .btn { flex: 1; }
+  .btn-cancel { background: #9ca3af; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🎬 My Reel Schedule</h1>
+    <div class="subtitle">November 2025 – December 2026 · 425 days total</div>
+    <div class="save-status" id="saveStatus">
+      ✓ <span id="saveStatusText">Auto-save active</span>
+    </div>
+    <div class="help">
+      <strong>Tap</strong> a day to add a reel · <strong>Long-press</strong> (hold ~½ sec) to remove a reel
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="totalReels">0</div><div class="stat-label">Total</div></div>
+      <div class="stat"><div class="stat-num" id="past7Reels">0</div><div class="stat-label">First 7 mo</div></div>
+      <div class="stat"><div class="stat-num" id="activeDays">0</div><div class="stat-label">Active Days</div></div>
+      <div class="stat"><div class="stat-num" id="targetTotal">425</div><div class="stat-label">14-mo Target</div></div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label" id="progressLabel">0% of target</div>
+    <div class="controls">
+      <select class="target-select" id="targetSelect">
+        <option value="1">Target: 1 reel/day</option>
+        <option value="2">Target: 2 reels/day</option>
+        <option value="3">Target: 3 reels/day</option>
+        <option value="5">Target: 5 reels/day</option>
+      </select>
+      <button type="button" class="btn btn-export" id="btnExport">📤 Export</button>
+      <button type="button" class="btn btn-reset" id="btnReset">↺ Reset to 36</button>
+      <button type="button" class="btn btn-clear" id="btnClear">🗑 Clear All</button>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div>Below target</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Target met</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Over target</div>
+    </div>
+  </header>
+  <div id="calendar"></div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">Confirm</h3>
+    <p id="modalMessage">Are you sure?</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-cancel" id="modalCancel">Cancel</button>
+      <button type="button" class="btn btn-reset" id="modalConfirm">Yes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const STORAGE_KEY = 'myReelSchedule_v1';
+const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const WEEKDAYS = ['S','M','T','W','T','F','S'];
+const CAL_MONTHS = [
+  {year:2025, month:10, days:30}, {year:2025, month:11, days:31},
+  {year:2026, month:0,  days:31}, {year:2026, month:1,  days:28},
+  {year:2026, month:2,  days:31}, {year:2026, month:3,  days:30},
+  {year:2026, month:4,  days:31}, {year:2026, month:5,  days:30},
+  {year:2026, month:6,  days:31}, {year:2026, month:7,  days:31},
+  {year:2026, month:8,  days:30}, {year:2026, month:9,  days:31},
+  {year:2026, month:10, days:30}, {year:2026, month:11, days:31},
+];
+
+function generatePrefilled() {
+  const prefilled = {};
+  for (let i = 0; i < 36; i++) {
+    const dayIndex = Math.round((i + 0.5) * (212 / 36));
+    let remaining = dayIndex;
+    for (let m = 0; m < 7; m++) {
+      if (remaining <= CAL_MONTHS[m].days) {
+        const key = `${CAL_MONTHS[m].year}-${CAL_MONTHS[m].month+1}-${remaining}`;
+        prefilled[key] = (prefilled[key] || 0) + 1;
+        break;
+      }
+      remaining -= CAL_MONTHS[m].days;
+    }
+  }
+  return prefilled;
+}
+
+let reelData = {};
+let targetPerDay = 1;
+let storageWorks = true;
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      reelData = parsed.reels || generatePrefilled();
+      targetPerDay = parsed.target || 1;
+    } else {
+      reelData = generatePrefilled();
+      saveData();
+    }
+  } catch (e) {
+    storageWorks = false;
+    reelData = generatePrefilled();
+    document.getElementById('saveStatus').classList.add('error');
+    document.getElementById('saveStatusText').textContent = '⚠ Storage blocked';
+  }
+}
+
+function saveData() {
+  if (!storageWorks) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      reels: reelData, target: targetPerDay, savedAt: new Date().toISOString()
+    }));
+  } catch (e) { storageWorks = false; }
+}
+
+function showToast(msg, color) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.style.background = color || '#10b981';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+let pendingAction = null;
+function showConfirm(title, message, onConfirm) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalMessage').textContent = message;
+  pendingAction = onConfirm;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function hideModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+  pendingAction = null;
+}
+
+function exportBackup() {
+  const text = JSON.stringify({ reels: reelData, target: targetPerDay, exportedAt: new Date().toISOString() }, null, 2);
+  try {
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `my-reel-schedule-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('✓ Backup downloaded');
+  } catch (e) {
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => showToast('✓ Copied to clipboard'));
+    else showToast('✗ Export failed', '#ef4444');
+  }
+}
+
+function doReset() { reelData = generatePrefilled(); saveData(); render(); showToast('✓ Reset to 36 reels'); }
+function doClearAll() { reelData = {}; saveData(); render(); showToast('✓ All data cleared'); }
+
+function dayKey(year, month, day) { return `${year}-${month+1}-${day}`; }
+
+function incrementDay(year, month, day) {
+  const key = dayKey(year, month, day);
+  reelData[key] = (reelData[key] || 0) + 1;
+  saveData(); render();
+}
+
+function decrementDay(year, month, day) {
+  const key = dayKey(year, month, day);
+  if (reelData[key] > 0) {
+    reelData[key]--;
+    if (reelData[key] === 0) delete reelData[key];
+    saveData(); render();
+    showToast('-1 reel', '#f59e0b');
+  }
+}
+
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+let lpTimer = null, lpFired = false, lpStartX = 0, lpStartY = 0;
+
+function attachDayHandlers() {
+  document.querySelectorAll('.day:not(.empty)').forEach(el => {
+    const y = parseInt(el.dataset.year);
+    const m = parseInt(el.dataset.month);
+    const d = parseInt(el.dataset.day);
+    if (isTouch) {
+      el.addEventListener('touchstart', (e) => {
+        lpFired = false;
+        const t = e.touches[0];
+        lpStartX = t.clientX; lpStartY = t.clientY;
+        lpTimer = setTimeout(() => { lpFired = true; decrementDay(y, m, d); }, 500);
+      }, { passive: true });
+      el.addEventListener('touchmove', (e) => {
+        const t = e.touches[0];
+        if (Math.abs(t.clientX - lpStartX) > 10 || Math.abs(t.clientY - lpStartY) > 10) clearTimeout(lpTimer);
+      }, { passive: true });
+      el.addEventListener('touchend', (e) => {
+        clearTimeout(lpTimer);
+        if (!lpFired) { e.preventDefault(); incrementDay(y, m, d); }
+      });
+      el.addEventListener('touchcancel', () => clearTimeout(lpTimer));
+    } else {
+      el.addEventListener('click', () => incrementDay(y, m, d));
+      el.addEventListener('contextmenu', (e) => { e.preventDefault(); decrementDay(y, m, d); });
+    }
+  });
+}
+
+function render() {
+  const calendar = document.getElementById('calendar');
+  calendar.innerHTML = '';
+  let totalReels = 0, past7Reels = 0, activeDays = 0;
+  const today = new Date();
+
+  CAL_MONTHS.forEach((monthInfo, idx) => {
+    const monthDiv = document.createElement('div');
+    const isPast7 = idx < 7;
+    monthDiv.className = 'month' + (isPast7 ? ' past-period' : '');
+    let monthCount = 0;
+    const firstDay = new Date(monthInfo.year, monthInfo.month, 1).getDay();
+    const isCurrentMonth = today.getFullYear() === monthInfo.year && today.getMonth() === monthInfo.month;
+
+    let daysHTML = '<div class="days">';
+    for (let i = 0; i < firstDay; i++) daysHTML += '<div class="day empty"></div>';
+    for (let d = 1; d <= monthInfo.days; d++) {
+      const key = dayKey(monthInfo.year, monthInfo.month, d);
+      const count = reelData[key] || 0;
+      monthCount += count;
+      if (count > 0) activeDays++;
+      let cls = 'day';
+      if (count > 0 && count < targetPerDay) cls += ' has-reels';
+      else if (count === targetPerDay) cls += ' target-met';
+      else if (count > targetPerDay) cls += ' over-target';
+      if (isCurrentMonth && d === today.getDate()) cls += ' today';
+      daysHTML += `<div class="${cls}" data-year="${monthInfo.year}" data-month="${monthInfo.month}" data-day="${d}">${d}${count > 0 ? `<div class="reel-count">${count}</div>` : ''}</div>`;
+    }
+    daysHTML += '</div>';
+    totalReels += monthCount;
+    if (isPast7) past7Reels += monthCount;
+
+    const monthLabel = `${MONTHS_FULL[monthInfo.month]} ${monthInfo.year}`;
+    const startBanner = idx === 0 ? `<div class="period-banner" style="background:linear-gradient(135deg,#10b981,#059669)">📌 First 7 months (Nov 2025 – May 2026)</div>` : '';
+    const futureBanner = idx === 7 ? `<div class="period-banner" style="background:linear-gradient(135deg,#667eea,#764ba2)">🎯 Upcoming (Jun – Dec 2026)</div>` : '';
+
+    monthDiv.innerHTML = `
+      ${startBanner}${futureBanner}
+      <div class="month-title"><span>${monthLabel}</span><span class="month-count">${monthCount} reels</span></div>
+      <div class="weekdays">${WEEKDAYS.map(w => `<div class="weekday">${w}</div>`).join('')}</div>
+      ${daysHTML}
+    `;
+    calendar.appendChild(monthDiv);
+  });
+
+  document.getElementById('totalReels').textContent = totalReels;
+  document.getElementById('past7Reels').textContent = past7Reels;
+  document.getElementById('activeDays').textContent = activeDays;
+  const yearTarget = 425 * targetPerDay;
+  document.getElementById('targetTotal').textContent = yearTarget;
+  const pct = yearTarget > 0 ? Math.min(100, (totalReels / yearTarget) * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct.toFixed(1) + '% of target';
+  attachDayHandlers();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  document.getElementById('targetSelect').value = targetPerDay;
+  render();
+  document.getElementById('btnExport').addEventListener('click', exportBackup);
+  document.getElementById('btnReset').addEventListener('click', () => {
+    showConfirm('Reset to 36 reels?', 'This will restore the original 36 pre-logged reels and remove anything added after.', doReset);
+  });
+  document.getElementById('btnClear').addEventListener('click', () => {
+    showConfirm('Clear ALL data?', 'This deletes every reel including the 36 pre-logged ones.', doClearAll);
+  });
+  document.getElementById('modalCancel').addEventListener('click', hideModal);
+  document.getElementById('modalConfirm').addEventListener('click', () => {
+    if (pendingAction) pendingAction();
+    hideModal();
+  });
+  document.getElementById('modalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'modalOverlay') hideModal();
+  });
+  document.getElementById('targetSelect').addEventListener('change', (e) => {
+    targetPerDay = parseInt(e.target.value);
+    saveData(); render();
+  });
+});
+</script>
+</body>
+</html>
